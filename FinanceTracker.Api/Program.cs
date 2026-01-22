@@ -7,6 +7,7 @@ using System.Globalization;
 using FinanceTracker.Api.Utils;
 
 var builder = WebApplication.CreateBuilder(args);
+var fraudThreshold = builder.Configuration.GetValue("FraudDetection:LargePurchaseThreshold", 400m);
 
 builder.Services.AddDbContext<AppDbContext>(opt =>
     opt.UseSqlite("Data Source=finance.db"));
@@ -135,7 +136,6 @@ app.MapGet("/api/fraud", async (string month, AppDbContext db) =>
 
     var start = new DateTime(dt.Year, dt.Month, 1);
     var end = start.AddMonths(1);
-    const decimal fraudThreshold = 400m;
 
     var data = await db.Transactions
         .Where(t => t.Date >= start && t.Date < end && t.Amount < 0 && -t.Amount >= fraudThreshold)
@@ -149,7 +149,11 @@ app.MapGet("/api/fraud", async (string month, AppDbContext db) =>
         })
         .ToListAsync();
 
-    return Results.Ok(data);
+    return Results.Ok(new
+    {
+        threshold = fraudThreshold,
+        items = data
+    });
 });
 
 app.Run();
